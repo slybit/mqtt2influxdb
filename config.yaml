@@ -1,0 +1,22 @@
+# One of 'error', 'warn', 'info', 'verbose', debug', 'silly'
+loglevel: 'silly'
+influx:
+  database: 'mqtt2influx'
+  host: '192.168.1.200'
+  port: 8086
+mqtt:
+  # URL to MQTT broker
+  url: 'mqtt://192.168.1.200'
+  # Configuration passed to the MQTT library
+  options:
+    username: 'mqtt_username'
+    password: 'mqtt_password'
+topics:
+  knx/status/+/+/+:
+    regex: '(knx)\/(status)\/(.*)\/(.*)\/(.*)'
+    measurement: '{{T.1}}.{{T.3}}.{{T.4}}'
+    tags:
+      label: '{{T.3}}.{{T.4}}'
+      dstgad: '{{M.dpt}}'
+    fields:
+      value: '{{M.value}}'
