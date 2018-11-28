@@ -4,7 +4,7 @@ const Influx = require('influx');
 const mustache = require('mustache');
 const config = require('./config.js').parse();
 
-let parse = function(topic, message, c) {
+let parse = function(topic, message) {
     // ensure data is Object
     let data = {};
     try {
@@ -12,22 +12,29 @@ let parse = function(topic, message, c) {
     } catch (err) {
         data.M = { 'value' : message};
     }
-    let regex = RegExp(c.regex);
-    data.T = regex.exec(topic);
-    let measurement = mustache.render(c.measurement, data);
-    let tags = {};
-    for (var tag in c.tags)
-        tags[tag] = mustache.render(c.tags[tag], data);
-    let fields = {};
-    for (var field in c.fields) {
-      fields[field] = mustache.render(c.fields[field], data);
-      if (field === 'value')
-        fields[field] = Number(fields[field]);
+
+    for (const r of config.rewrites) {
+        let regex = RegExp(r.regex);
+        data.T = regex.exec(topic);
+        if (data.T) {
+            let measurement = mustache.render(r.measurement, data);
+            let tags = {};
+            for (var tag in r.tags)
+                tags[tag] = mustache.render(r.tags[tag], data);
+            let fields = {};
+            for (var field in r.fields) {
+            fields[field] = mustache.render(r.fields[field], data);
+            if (field === 'value')
+                fields[field] = Number(fields[field]);
+            }
+            console.log(fields);      
+        }
     }
+
 }
 
 let start = (new Date).getTime();
-parse('knx/status/a/b/c', JSON.stringify({'dst' : '0/0/108', 'value' : 'a10'}), config.topics["knx/status/+/+/+"]);
+parse('knx/status/a/b/c', JSON.stringify({'dst' : '0/0/108', 'value' : '10', 'label' : 'shit'}), config.topics["knx/status/+/+/+"]);
 console.log("time needed: " + ((new Date).getTime() - start));
 
 //const influx = new Influx.InfluxDB(config.influx);
@@ -37,25 +44,27 @@ console.log("time needed: " + ((new Date).getTime() - start));
  */
 /*
 influx.getDatabaseNames()
-  .then(names => {
-    if (!names.includes('mqtt2influx')) {
-      return influx.createDatabase('mqtt2influx');
+    .then(names => {
+      if (!names.includes('mqtt2influx')) {
+        return influx.createDatabase('mqtt2influx');
+      }
+    })
+    .then(() => {
+        console.log('Influx DB ready to use.');
+    })
+    .catch(err => {
+        console.error('Error creating Influx database!');
     }
-  })
-  .then(() => {
-      console.log('Influx DB ready to use.');
-  })
-  .catch(err => {
-    console.error('Error creating Influx database!');
-  })
+)
 
 influx.writePoints([
     {
-      measurement: 'response_times',
-      tags: { host: 'test' },
-      fields: { value: 10 }
+        measurement: 'response_times',
+        tags: { host: 'test' },
+        fields: { value: 10 }
     }
     ]).catch(err => {
-    console.error(`Error saving data to InfluxDB! ${err.stack}`)
-})
+      console.error(`Error saving data to InfluxDB! ${err.stack}`)
+    }
+)
 */
