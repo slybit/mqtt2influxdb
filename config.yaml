@@ -16,7 +16,7 @@ topics:
     regex: '(knx)\/(status)\/(.*)\/(.*)\/(.*)'
     measurement: '{{T.1}}.{{T.3}}.{{T.4}}'
     tags:
-      label: '{{T.3}}.{{T.4}}'
-      dstgad: '{{M.dpt}}'
+      label: '{{T.5}}'
+      dstgad: '{{{M.dst}}}'
     fields:
       value: '{{M.value}}'

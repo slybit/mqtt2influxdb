@@ -12,18 +12,23 @@ let parse = function(topic, message, c) {
     } catch (err) {
         data.M = { 'value' : message};
     }
-    console.log(data);
-    console.log(c);
     let regex = RegExp(c.regex);
     data.T = regex.exec(topic);
-    console.log(data);
-    console.log(mustache.render(c.measurement, data));
-
-
-
+    let measurement = mustache.render(c.measurement, data);
+    let tags = {};
+    for (var tag in c.tags)
+        tags[tag] = mustache.render(c.tags[tag], data);
+    let fields = {};
+    for (var field in c.fields) {
+      fields[field] = mustache.render(c.fields[field], data);
+      if (field === 'value')
+        fields[field] = Number(fields[field]);
+    }
 }
 
-parse('knx/status/a/b/c', JSON.stringify({'dst' : '0/0/108', 'value' : 10}), config.topics["knx/status/+/+/+"]);
+let start = (new Date).getTime();
+parse('knx/status/a/b/c', JSON.stringify({'dst' : '0/0/108', 'value' : 'a10'}), config.topics["knx/status/+/+/+"]);
+console.log("time needed: " + ((new Date).getTime() - start));
 
 //const influx = new Influx.InfluxDB(config.influx);
 
