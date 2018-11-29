@@ -17,6 +17,8 @@ const logger = createLogger({
     transports: [new transports.Console()]
 });
 
+const influx = new Influx.InfluxDB(config.influx);
+
 let parse = function(topic, message) {
     // ensure data is Object
     let data = {};
@@ -29,28 +31,35 @@ let parse = function(topic, message) {
     for (const r of config.rewrites) {
         let regex = RegExp(r.regex);
         data.T = regex.exec(topic);
+        let point = {};
         if (data.T) {
-            let measurement = mustache.render(r.measurement, data);
-            let tags = {};
-            for (var tag in r.tags)
-                tags[tag] = mustache.render(r.tags[tag], data);
-            let fields = {};
-            for (var field in r.fields) {
-            fields[field] = mustache.render(r.fields[field], data);
-            if (field === 'value')
-                fields[field] = Number(fields[field]);
+            point.measurement = mustache.render(r.measurement, data);
+            let ts = Number(mustache.render(r.timestamp, data));
+            if (!isNaN(ts)) point.timestamp = new Date(ts);
+            point.tags = {};
+            for (var tag in r.tags) {
+                point.tags[tag] = mustache.render(r.tags[tag], data);
             }
-            logger.verbose('Published %s, fields: %s, tags: %s', measurement, JSON.stringify(fields), JSON.stringify(tags));
+            point.fields = {};
+            for (var field in r.fields) {
+                point.fields[field] = mustache.render(r.fields[field], data);
+                if (field === 'value') point.fields[field] = Number(point.fields[field]);
+            }
+
+            if (point.measurement && Object.keys(point.fields).length > 0) {
+                writeToInfux(point);
+            } else {
+                if (!point.measurement)
+                    logger.warn('Rewrite resulted in missing measurement. Nothing sent to influx DB.');
+                if (Object.keys(point.fields).length == 0)
+                    logger.warn('Rewrite resulted in empty fields array. Nothing sent to influx DB.');
+            }
         }
     }
 
 }
 
-let start = (new Date).getTime();
-parse('knx/status/a/b/c', JSON.stringify({'dst' : '0/0/108', 'value' : '10', 'label' : 'shit'}), config.topics["knx/status/+/+/+"]);
-console.log("time needed: " + ((new Date).getTime() - start));
 
-const influx = new Influx.InfluxDB(config.influx);
 
 /**
  * Now, we'll make sure the database exists and boot the app.
@@ -95,18 +104,14 @@ let setMqttHandlers = function(mqttClient) {
         console.log(topic + "  " + message);
         parse(topic, message);
     });
-
 }
 
-/*
-influx.writePoints([
-    {
-        measurement: 'response_times',
-        tags: { host: 'test' },
-        fields: { value: 10 }
-    }
-    ]).catch(err => {
-      console.error(`Error saving data to InfluxDB! ${err.stack}`)
-    }
-)
-*/
+let writeToInfux = function(point) {
+    logger.verbose('Publishing %s, fields: %s, tags: %s, timestamp: %s', point.measurement, JSON.stringify(point.fields), JSON.stringify(point.tags), point.timestamp);
+    influx.writePoints([
+            point
+        ]).catch(err => {
+        console.error(`Error saving data to InfluxDB! ${err.stack}`)
+        }
+    )
+}

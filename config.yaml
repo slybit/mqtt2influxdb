@@ -16,6 +16,7 @@ topics:
 rewrites:
     - regex: '(knx)\/(status)\/(.*\D.*)\/(.*\D.*)\/(.*\D.*)'
       measurement: '{{T.3}}.{{T.4}}'
+      timestamp: '{{M.ts}}'
       tags:
         label: '{{T.5}}'
         dstgad: '{{{M.dstgad}}}'
