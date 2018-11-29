@@ -12,18 +12,20 @@ mqtt:
     username: 'mqtt_username'
     password: 'mqtt_password'
 topics:
-  "knx/status/+/+/+"
+  - "knx/status/+/+/+"
 rewrites:
-    - regex: '(knx)\/(status)\/(.*)\/(.*)\/(.*)'
-      measurement: '{{T.1}}.{{T.3}}.{{T.4}}'
+    - regex: '(knx)\/(status)\/(.*\D.*)\/(.*\D.*)\/(.*\D.*)'
+      measurement: '{{T.3}}.{{T.4}}'
       tags:
         label: '{{T.5}}'
-        dstgad: '{{{M.dst}}}'
+        dstgad: '{{{M.dstgad}}}'
       fields:
         value: '{{M.value}}'
-    - regex: 'knx\/(.*)'
+    - regex: 'test\/(.*)'
       measurement: '{{T.1}}'
       tags:
         label: 'label{{T.1}}{{M.label}}'
       fields:
         f: 'value{{{T.1}}}{{M.label}}'
+test:
+  - regex: '(knx)\/(status)\/(.*)\/(.*)\/(.*)'
