@@ -1,5 +1,6 @@
 # One of 'error', 'warn', 'info', 'verbose', debug', 'silly'
 loglevel: 'silly'
+# Configuration passed to the node-influx library
 influx:
   database: 'mqtt2influx'
   host: '192.168.1.200'

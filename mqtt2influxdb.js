@@ -43,7 +43,7 @@ let parse = function(topic, message) {
             point.fields = {};
             for (var field in r.fields) {
                 point.fields[field] = mustache.render(r.fields[field], data);
-                if (field === 'value') point.fields[field] = Number(point.fields[field]);
+                if (!isNaN(point.fields[field])) point.fields[field] = Number(point.fields[field]);
             }
 
             if (point.measurement && Object.keys(point.fields).length > 0) {
