@@ -22,7 +22,7 @@ rewrites:
         label: '{{T.5}}'
         dstgad: '{{{M.dstgad}}}'
       fields:
-        value: '{{M.value}}'
+        value: '{{M.val}}'
     - regex: 'test\/(.*)'
       measurement: '{{T.1}}'
       tags:

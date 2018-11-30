@@ -48,7 +48,7 @@ rewrites:
         label: '{{T.5}}'
         dstgad: '{{{M.dstgad}}}'
       fields:
-        value: '{{M.value}}'
+        value: '{{M.val}}'
     - regex: 'test\/(.*)'
       measurement: '{{T.1}}'
       tags:
@@ -115,7 +115,7 @@ For example, if the MQTT message, with topic **knx/status/AAA/BBB/CCC** has this
     'middle'    :   'Set',
     'sub'       :   'Bathroom',
     'dpt'       :   'DPT1.001',
-    'value'     :   1
+    'val'       :   1
 }
 ```
 The rewrite rule above would result in these values to be send to InfluxDB:
