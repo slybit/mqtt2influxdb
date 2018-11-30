@@ -16,13 +16,13 @@ It uses the following libraries:
 
 ## Configuration of InfluxDB and MQTT connections
 
-The `influx:` section is passed straight to InfluxDB constructor of the node-influx library (https://node-influx.github.io/class/src/index.js~InfluxDB.html).
+The **influx:** section is passed straight to InfluxDB constructor of the node-influx library (https://node-influx.github.io/class/src/index.js~InfluxDB.html).
 
 ```javascript
 const influx = new Influx.InfluxDB(config.influx);
 ```
 
-The `mqtt:` section is passed to the `connect` method of the mqtt class of the mqtt library:
+The **mqtt:** section is passed to the `connect` method of the mqtt class of the mqtt library:
 
 ```javascript
 let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
@@ -31,13 +31,13 @@ let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
 
 ## MQTT topic subscriptions
 
-The `topics:` section lists the MQTT topics we will subscribe to.
+The **topics:** section lists the MQTT topics we will subscribe to.
 
 ## Rewrite configuration
 
-Actual specification of how MQTT messages are forwarded to the Influx DB database are configured in the `rewrites:` section.
+Actual specification of how MQTT messages are forwarded to the Influx DB database are configured in the **rewrites:** section.
 
-This is an example `rewrites` section with 2 rewrite rules:
+This is an example **rewrites** section with 2 rewrite rules:
 
 ```yaml
 rewrites:
@@ -127,7 +127,6 @@ The rewrite rule above would result in these values to be send to InfluxDB:
        dstgad: '0/1/2'
     fields:
         value: 1
-}
 ```
 
 ### 'numeric' fields and tags
@@ -136,7 +135,7 @@ The field or tag that can be converted into a number after the mustache template
 
 ### timestamp
 
-The **timestamp** (optional) **must** be provided as number of milliseconds since Jan 1, 1970, 00:00:00.000 GMT (so the Unix Timestamp in *milliseconds*).
+The **timestamp** (optional) **must** be provided as number of milliseconds since Jan 1, 1970, 00:00:00.000 GMT (so the Unix Timestamp in *milliseconds*). It is converted automatically in *nanoseconds* by the tool.
 
 If it is provided, it will be used by IndexDB as the timestamp of the event.
 
