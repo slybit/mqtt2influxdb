@@ -57,21 +57,21 @@ rewrites:
         f: 'value{{{T.1}}}{{M.label}}'
 ```
 
-Every rewrite rule must have at least a `regex`, `measurement` and `fields` section. The `timestamp` and `tags` sections are optional.
+Every rewrite rule must have at least a **regex**, **measurement** and **fields** section. The **timestamp** and **tags** sections are optional.
 
-### regex
+### Regex
 
-Every messages send to one of the topics we subscribed to in the `topics:` section is passed through each rewrite rule.
+Every messages send to one of the topics we subscribed to in the **topics:** section is passed through each rewrite rule.
 
-First, the topic of the MQTT message if validated against the provided `regex` string. If it matches, the MQTT message will be used as input. If it does not match, it is ignored by this rewrite rule.
+First, the topic of the MQTT message if validated against the provided **regex** string. If it matches, the MQTT message will be used as input. If it does not match, it is ignored by this rewrite rule.
 
 The values extracted from the topic by the regular expression are stored in an object `T` for later use in the mustache templates:
 
 `{{T.1}}` will be replaced with the first regex group, `{{T.2}}` with the second, etc.
 
-**Important:** Note that `{{T.0}}` does not exist!
+**Important:** `{{T.0}}` matches the full topic!
 
-For example, if the MQTT message topic is `knx/status/AAA/BBB/CCC` it will match the regex of the first rewrite rule.
+For example, if the MQTT message topic is **knx/status/AAA/BBB/CCC** it will match the regex of the first rewrite rule.
 
 In the mustache expressions, `{{T.1}}` will be replaced with "knx", `{{T.2}}` with "status", `{{T.3}}` with "AAA", etc.
 
@@ -88,6 +88,9 @@ However, I think it is sufficient to know that
 - `{{T.#}}` is replaced with the regex group # in the provided regex as explained above
 - `{{M.key}}` is replaced with the *value* of the message field with name *key*
 
+Mustache will automatically HTMl encode any "HTML" special characters like "<", ">", "&", etc.
+If you do not want this escaping to happen, you should use three curly brackets, like `{{{M.key}}}`.
+
 ### MQTT message payload
 
 The tool accepts two types of MQTT message payloads:
@@ -97,11 +100,11 @@ The tool accepts two types of MQTT message payloads:
 
 MQTT messages that do not fall in either of these categories are ignored.
 
-In case it is a JSON string, the message is parsed into a Javascript object `M` and the values contained inside can be accessed using `M.key` in the mustache templates. It supports nested structures and array (access the first element of an array using `.0`)
+In case it is a JSON string, the message is parsed into a Javascript object `M` and the values contained inside can be accessed using `M.key` in the mustache templates. It supports nested structures and array (access the first element of an array using `M.array.0`)
 
 In case it is a string representing a number, it can be accessed using `M.value` in the mustache templates.
 
-For example, if the MQTT message, with topic `knx/status/AAA/BBB/CCC` has this message:
+For example, if the MQTT message, with topic **knx/status/AAA/BBB/CCC** has this message:
 ```javascript
 {
     'srcphy'    :   '1.1.0',
@@ -133,7 +136,7 @@ The field or tag that can be converted into a number after the mustache template
 
 ### timestamp
 
-The `timestamp` (optional) **must** be provided as number of milliseconds since Jan 1, 1970, 00:00:00.000 GMT (so the Unix Timestamp in *milliseconds*).
+The **timestamp** (optional) **must** be provided as number of milliseconds since Jan 1, 1970, 00:00:00.000 GMT (so the Unix Timestamp in *milliseconds*).
 
 If it is provided, it will be used by IndexDB as the timestamp of the event.
 
