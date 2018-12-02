@@ -1,5 +1,7 @@
 # One of 'error', 'warn', 'info', 'verbose', debug', 'silly'
 loglevel: 'silly'
+# Set to true to also parse retain messages at start up
+retained: false
 # Configuration passed to the node-influx library
 influx:
   database: 'mqtt2influx'

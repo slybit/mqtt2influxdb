@@ -83,7 +83,7 @@ The rest of the rewrite rule configuration is a set of small mustache templates 
 
 Check out the official mustache pages for more information on how mustache works: http://mustache.github.io/.
 
-However, I think it is sufficient to know that 
+However, I think it is sufficient to know that
 
 - `{{T.#}}` is replaced with the regex group # in the provided regex as explained above
 - `{{M.key}}` is replaced with the *value* of the message field with name *key*
@@ -131,7 +131,7 @@ The rewrite rule above would result in these values to be send to InfluxDB:
 
 ### 'numeric' fields and tags
 
-The field or tag that can be converted into a number after the mustache template has been evaluated, is always converted into a number before sending in to InfluxDB. Measurements will always be strings. 
+The field or tag that can be converted into a number after the mustache template has been evaluated, is always converted into a number before sending in to InfluxDB. Measurements will always be strings.
 
 ### timestamp
 
@@ -140,3 +140,9 @@ The **timestamp** (optional) **must** be provided as number of milliseconds sinc
 If it is provided, it will be used by IndexDB as the timestamp of the event.
 
 If it is not provided then InfluxDB will use the current time as timestamp of the event (default InfluxDB behaviour).
+
+### retained messages
+
+By default, retained messages will **not** be sent to Influx DB. So when starting mqtt2influxdb, all messages that were retained by the MQTT broker are ignored. This is to prevent duplicate injections after a restart.
+
+If you do want to send retained messages to Influx DB, you can enabled this by putting `retained: true` in the config file.
