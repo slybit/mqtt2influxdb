@@ -27,8 +27,10 @@ let parse = function(topic, message) {
     try {
         data.M = JSON.parse(message);
     } catch (err) {
-        data.M = { 'value' : message};
+        data.M = { 'val' : message};
     }
+
+    console.log(data);
 
     for (const r of config.rewrites) {
         let regex = RegExp(r.regex);
@@ -36,8 +38,10 @@ let parse = function(topic, message) {
         let point = {};
         if (data.T) {
             point.measurement = mustache.render(r.measurement, data);
-            let ts = Number(mustache.render(r.timestamp, data));
-            if (!isNaN(ts)) point.timestamp = new Date(ts);
+            if (r.timestamp) {
+                let ts = Number(mustache.render(r.timestamp, data));
+                if (!isNaN(ts)) point.timestamp = new Date(ts);
+            }
             point.tags = {};
             for (var tag in r.tags) {
                 point.tags[tag] = mustache.render(r.tags[tag], data);
