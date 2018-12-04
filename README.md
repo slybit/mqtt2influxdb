@@ -102,7 +102,7 @@ MQTT messages that do not fall in either of these categories are ignored.
 
 In case it is a JSON string, the message is parsed into a Javascript object `M` and the values contained inside can be accessed using `M.key` in the mustache templates. It supports nested structures and array (access the first element of an array using `M.array.0`)
 
-In case it is a string representing a number, it can be accessed using `M.value` in the mustache templates.
+In case it is a string representing a number, it can be accessed using simply `M` in the mustache templates.
 
 For example, if the MQTT message, with topic **knx/status/AAA/BBB/CCC** has this message:
 ```javascript
