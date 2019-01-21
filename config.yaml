@@ -23,6 +23,8 @@ rewrites:
         dstgad: '{{{M.dstgad}}}'
       fields:
         value: '{{M.val}}'
+      continue: true
+      repeat: 60
     - regex: 'test\/(.*)'
       measurement: '{{T.1}}'
       tags:

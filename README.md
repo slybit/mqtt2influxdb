@@ -49,6 +49,7 @@ rewrites:
         dstgad: '{{{M.dstgad}}}'
       fields:
         value: '{{M.val}}'
+      continue: true
     - regex: 'test\/(.*)'
       measurement: '{{T.1}}'
       tags:
@@ -57,7 +58,7 @@ rewrites:
         f: 'value{{{T.1}}}{{M.label}}'
 ```
 
-Every rewrite rule must have at least a **regex**, **measurement** and **fields** section. The **timestamp** and **tags** sections are optional.
+Every rewrite rule must have at least a **regex**, **measurement** and **fields** section. The **timestamp**, **tags** and **continue** sections are optional.
 
 ### Regex
 
@@ -140,3 +141,11 @@ The **timestamp** (optional) **must** be provided as number of milliseconds sinc
 If it is provided, it will be used by IndexDB as the timestamp of the event.
 
 If it is not provided then InfluxDB will use the current time as timestamp of the event (default InfluxDB behaviour).
+
+### continue
+
+Rewrite rules are parsed from top to bottom (as present in the config file).
+
+By default, when a matching topic for a particular rewrite is found, parsing will *stop*. This means that rewrite rules further down are no longer taken into account. If you wish to continue looking for matches, then just set `continue: true` in the rewrite and the parser will continue looking for other matches of the topic, possibly resulting in multiple entries in InfluxDB.
+
+The idea is that you put very specific topics high in the rewrite list and more generic (wildcard) topics further down. This allows you to create a specific rule for a couple of topics and more 'catch-all' topics for all other topics. Since the parser will stop parsing after the first match, you do not have to worry about multiple entries being pushed to InfluxDB.

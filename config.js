@@ -5,7 +5,7 @@ exports.parse = function () {
     const file = process.env.MQTT_CONFIG || 'config.yaml';
     if (fs.existsSync(file)) {
         try {
-          return yaml.safeLoad(fs.readFileSync(file, 'utf8'));
+          return validate(yaml.safeLoad(fs.readFileSync(file, 'utf8')));
         } catch (e) {
           console.log(e);
           process.exit();
@@ -15,7 +15,7 @@ exports.parse = function () {
             loglevel: 'silly',
             influx: {
                 database: 'mqtt2influx',
-                host: '192.168.1.150',
+                host: 'localhost',
                 port: 8086
             },
             mqtt: {
@@ -23,4 +23,17 @@ exports.parse = function () {
             }
         }
     }
+}
+
+validate = function(c) {
+    for (const r of c.rewrites) {
+        if (r.repeat)
+            if (!r.repeat.isNaN) {
+                r.factor = Math.ceil(r.repeat / 30);
+            } else {
+                throw new Exception('Repeat parameter must be a number!')
+            } 
+
+    }
+
 }
