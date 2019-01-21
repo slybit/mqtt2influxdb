@@ -6,6 +6,8 @@ const mqtt = require('mqtt');
 const { createLogger, format, transports } = require('winston');
 const config = require('./config.js').parse();
 
+let justStarted = true;
+
 // Initate the logger
 const logger = createLogger({
     level: config.loglevel,
@@ -25,8 +27,10 @@ let parse = function(topic, message) {
     try {
         data.M = JSON.parse(message);
     } catch (err) {
-        data.M = { 'value' : message};
+        data.M = { 'val' : message};
     }
+
+    console.log(data);
 
     for (const r of config.rewrites) {
         let regex = RegExp(r.regex);
@@ -34,8 +38,10 @@ let parse = function(topic, message) {
         let point = {};
         if (data.T) {
             point.measurement = mustache.render(r.measurement, data);
-            let ts = Number(mustache.render(r.timestamp, data));
-            if (!isNaN(ts)) point.timestamp = new Date(ts);
+            if (r.timestamp) {
+                let ts = Number(mustache.render(r.timestamp, data));
+                if (!isNaN(ts)) point.timestamp = new Date(ts);
+            }
             point.tags = {};
             for (var tag in r.tags) {
                 point.tags[tag] = mustache.render(r.tags[tag], data);
@@ -75,12 +81,12 @@ influx.getDatabaseNames()
       }
     })
     .then(() => {
-        console.log('Influx DB ready to use. Connecting to MQTT.');
+        logger.info('Influx DB ready to use. Connecting to MQTT.');
         let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
         setMqttHandlers(mqttClient);
     })
     .catch(err => {
-        console.error('Error creating Influx database!');
+        logger.warn('Error creating Influx database!');
     }
 )
 
@@ -101,11 +107,17 @@ let setMqttHandlers = function(mqttClient) {
         logger.info('MQTT trying to reconnect');
     });
 
-    mqttClient.on('message', function (topic, message) {
-        // message is a buffer
-        message = message.toString();
-        console.log(topic + "  " + message);
-        parse(topic, message);
+    mqttClient.on('message', function (topic, message, packet) {
+        // ignore the initial retained messages
+        if (!packet.retain) justStarted = false;
+        if (!justStarted || config.retained) {
+            // message is a buffer
+            logger.silly("MQTT received %s : %s", topic, message)
+            message = message.toString();
+            parse(topic, message);
+        } else {
+            logger.silly("MQTT ignored initial retained  %s : %s", topic, message)
+        }
     });
 }
 
@@ -114,7 +126,7 @@ let writeToInfux = function(point) {
     influx.writePoints([
             point
         ]).catch(err => {
-        console.error(`Error saving data to InfluxDB! ${err.stack}`)
+            logger.warn(`Error saving data to InfluxDB! ${err.stack}`)
         }
     )
 }

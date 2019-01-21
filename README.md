@@ -84,7 +84,7 @@ The rest of the rewrite rule configuration is a set of small mustache templates 
 
 Check out the official mustache pages for more information on how mustache works: http://mustache.github.io/.
 
-However, I think it is sufficient to know that 
+However, I think it is sufficient to know that
 
 - `{{T.#}}` is replaced with the regex group # in the provided regex as explained above
 - `{{M.key}}` is replaced with the *value* of the message field with name *key*
@@ -103,7 +103,7 @@ MQTT messages that do not fall in either of these categories are ignored.
 
 In case it is a JSON string, the message is parsed into a Javascript object `M` and the values contained inside can be accessed using `M.key` in the mustache templates. It supports nested structures and array (access the first element of an array using `M.array.0`)
 
-In case it is a string representing a number, it can be accessed using `M.value` in the mustache templates.
+In case it is a string representing a number, it can be accessed using simply `M` in the mustache templates.
 
 For example, if the MQTT message, with topic **knx/status/AAA/BBB/CCC** has this message:
 ```javascript
@@ -132,7 +132,7 @@ The rewrite rule above would result in these values to be send to InfluxDB:
 
 ### 'numeric' fields and tags
 
-The field or tag that can be converted into a number after the mustache template has been evaluated, is always converted into a number before sending in to InfluxDB. Measurements will always be strings. 
+The field or tag that can be converted into a number after the mustache template has been evaluated, is always converted into a number before sending in to InfluxDB. Measurements will always be strings.
 
 ### timestamp
 
@@ -149,3 +149,8 @@ Rewrite rules are parsed from top to bottom (as present in the config file).
 By default, when a matching topic for a particular rewrite is found, parsing will *stop*. This means that rewrite rules further down are no longer taken into account. If you wish to continue looking for matches, then just set `continue: true` in the rewrite and the parser will continue looking for other matches of the topic, possibly resulting in multiple entries in InfluxDB.
 
 The idea is that you put very specific topics high in the rewrite list and more generic (wildcard) topics further down. This allows you to create a specific rule for a couple of topics and more 'catch-all' topics for all other topics. Since the parser will stop parsing after the first match, you do not have to worry about multiple entries being pushed to InfluxDB.
+### retained messages
+
+By default, retained messages will **not** be sent to Influx DB. So when starting mqtt2influxdb, all messages that were retained by the MQTT broker are ignored. This is to prevent duplicate injections after a restart.
+
+If you do want to send retained messages to Influx DB, you can enabled this by putting `retained: true` in the config file.

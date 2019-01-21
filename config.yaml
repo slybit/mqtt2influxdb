@@ -1,5 +1,7 @@
 # One of 'error', 'warn', 'info', 'verbose', debug', 'silly'
 loglevel: 'silly'
+# Set to true to also parse retain messages at start up
+retained: false
 # Configuration passed to the node-influx library
 influx:
   database: 'mqtt2influx'
@@ -13,7 +15,7 @@ mqtt:
     username: 'mqtt_username'
     password: 'mqtt_password'
 topics:
-  - "knx/status/+/+/+"
+  - "knx/#"
 rewrites:
     - regex: '(knx)\/(status)\/(.*\D.*)\/(.*\D.*)\/(.*\D.*)'
       measurement: '{{T.3}}.{{T.4}}'
@@ -29,7 +31,7 @@ rewrites:
       measurement: '{{T.1}}'
       tags:
         label: 'label{{T.1}}{{M.label}}'
+    - regex: 'knx\/connected'
+      measurement: 'knx/connected'
       fields:
-        f: 'value{{{T.1}}}{{M.label}}'
-test:
-  - regex: '(knx)\/(status)\/(.*)\/(.*)\/(.*)'
+        value: '{{M}}'
