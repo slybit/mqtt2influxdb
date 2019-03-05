@@ -25,6 +25,12 @@ rewrites:
         dstgad: '{{{M.dstgad}}}'
       fields:
         value: '{{M.val}}'
+      continue: true
+      repeat: 60
+    - regex: 'test\/(.*)'
+      measurement: '{{T.1}}'
+      tags:
+        label: 'label{{T.1}}{{M.label}}'
     - regex: 'knx\/connected'
       measurement: 'knx/connected'
       fields:

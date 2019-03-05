@@ -54,7 +54,10 @@ let parse = function(topic, message) {
                 if (Object.keys(point.fields).length == 0)
                     logger.warn('Rewrite resulted in empty fields array. Nothing sent to influx DB.');
             }
+            // break the for loop if topic matched and config does not say "continue : true"
+            if (!(r.continue === true)) break;
         }
+
     }
 
 }

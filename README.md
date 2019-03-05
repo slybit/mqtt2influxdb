@@ -49,6 +49,7 @@ rewrites:
         dstgad: '{{{M.dstgad}}}'
       fields:
         value: '{{M.val}}'
+      continue: true
     - regex: 'test\/(.*)'
       measurement: '{{T.1}}'
       tags:
@@ -57,7 +58,7 @@ rewrites:
         f: 'value{{{T.1}}}{{M.label}}'
 ```
 
-Every rewrite rule must have at least a **regex**, **measurement** and **fields** section. The **timestamp** and **tags** sections are optional.
+Every rewrite rule must have at least a **regex**, **measurement** and **fields** section. The **timestamp**, **tags** and **continue** sections are optional.
 
 ### Regex
 
@@ -102,7 +103,7 @@ MQTT messages that do not fall in either of these categories are ignored.
 
 In case it is a JSON string, the message is parsed into a Javascript object `M` and the values contained inside can be accessed using `M.key` in the mustache templates. It supports nested structures and array (access the first element of an array using `M.array.0`)
 
-In case it is a string representing a number, it can be accessed using `M.value` in the mustache templates.
+In case it is a string representing a number, it can be accessed using simply `M` in the mustache templates.
 
 For example, if the MQTT message, with topic **knx/status/AAA/BBB/CCC** has this message:
 ```javascript
@@ -141,6 +142,13 @@ If it is provided, it will be used by IndexDB as the timestamp of the event.
 
 If it is not provided then InfluxDB will use the current time as timestamp of the event (default InfluxDB behaviour).
 
+### continue
+
+Rewrite rules are parsed from top to bottom (as present in the config file).
+
+By default, when a matching topic for a particular rewrite is found, parsing will *stop*. This means that rewrite rules further down are no longer taken into account. If you wish to continue looking for matches, then just set `continue: true` in the rewrite and the parser will continue looking for other matches of the topic, possibly resulting in multiple entries in InfluxDB.
+
+The idea is that you put very specific topics high in the rewrite list and more generic (wildcard) topics further down. This allows you to create a specific rule for a couple of topics and more 'catch-all' topics for all other topics. Since the parser will stop parsing after the first match, you do not have to worry about multiple entries being pushed to InfluxDB.
 ### retained messages
 
 By default, retained messages will **not** be sent to Influx DB. So when starting mqtt2influxdb, all messages that were retained by the MQTT broker are ignored. This is to prevent duplicate injections after a restart.
