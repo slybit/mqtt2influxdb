@@ -27,13 +27,15 @@ exports.parse = function () {
 
 validate = function(c) {
     for (const r of c.rewrites) {
+        // check that repeat parameter is a valid number
+        // calculate the repeat factor
         if (r.repeat)
-            if (!r.repeat.isNaN) {
+            if (!isNaN(r.repeat)) {
                 r.factor = Math.ceil(r.repeat / 30);
             } else {
-                throw new Exception('Repeat parameter must be a number!')
-            } 
-
+                console.log('not a number');
+                throw new Error('Repeat parameter must be a number!')
+            }
     }
-
+    return c;
 }

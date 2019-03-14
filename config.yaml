@@ -17,6 +17,12 @@ mqtt:
 topics:
   - "knx/#"
 rewrites:
+    - regex: 'knx\/status\/31\/7\/1'
+      measurement: 'knx.status'
+      tags: 
+        label: 'jknx'
+      fields:
+        value: 1
     - regex: '(knx)\/(status)\/(.*\D.*)\/(.*\D.*)\/(.*\D.*)'
       measurement: '{{T.3}}.{{T.4}}'
       timestamp: '{{M.ts}}'
@@ -26,7 +32,7 @@ rewrites:
       fields:
         value: '{{M.val}}'
       continue: true
-      repeat: 60
+      #repeat: 30
     - regex: 'test\/(.*)'
       measurement: '{{T.1}}'
       tags:

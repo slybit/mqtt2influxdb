@@ -19,9 +19,12 @@ const logger = createLogger({
     transports: [new transports.Console()]
 });
 
+// maps topic -> {influxDB point, factor, counter}
+const repeaters = new Map();
+
 const influx = new Influx.InfluxDB(config.influx);
 
-let parse = function(topic, message) {
+const parse = function(topic, message) {
     // ensure data is Object
     let data = {};
     try {
@@ -30,25 +33,23 @@ let parse = function(topic, message) {
         data.M = { 'val' : message};
     }
 
-    console.log(data);
-
     for (const r of config.rewrites) {
         let regex = RegExp(r.regex);
         data.T = regex.exec(topic);
         let point = {};
         if (data.T) {
-            point.measurement = mustache.render(r.measurement, data);
+            point.measurement = render(r.measurement, data);
             if (r.timestamp) {
-                let ts = Number(mustache.render(r.timestamp, data));
+                let ts = Number(render(r.timestamp, data));
                 if (!isNaN(ts)) point.timestamp = new Date(ts);
             }
             point.tags = {};
             for (var tag in r.tags) {
-                point.tags[tag] = mustache.render(r.tags[tag], data);
+                point.tags[tag] = render(r.tags[tag], data);
             }
             point.fields = {};
             for (var field in r.fields) {
-                point.fields[field] = mustache.render(r.fields[field], data);
+                point.fields[field] = render(r.fields[field], data);
                 if (!isNaN(point.fields[field])) point.fields[field] = Number(point.fields[field]);
             }
 
@@ -60,6 +61,15 @@ let parse = function(topic, message) {
                 if (Object.keys(point.fields).length == 0)
                     logger.warn('Rewrite resulted in empty fields array. Nothing sent to influx DB.');
             }
+
+            // setup a repeater if necessary
+            if (r.factor) {
+                logger.silly('Setting repeater for %s', topic);
+                // remove timestamp from point as it will be incorrect for future insertions
+                delete point.timestamp;
+                repeaters.set(topic, {'point' : point, 'factor' : r.factor, 'count' : 0});
+            }
+
             // break the for loop if topic matched and config does not say "continue : true"
             if (!(r.continue === true)) break;
         }
@@ -68,29 +78,18 @@ let parse = function(topic, message) {
 
 }
 
-
-
-/**
- * Now, we'll make sure the database exists and boot the app.
- */
-
-influx.getDatabaseNames()
-    .then(names => {
-      if (!names.includes('mqtt2influx')) {
-        return influx.createDatabase('mqtt2influx');
-      }
-    })
-    .then(() => {
-        logger.info('Influx DB ready to use. Connecting to MQTT.');
-        let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
-        setMqttHandlers(mqttClient);
-    })
-    .catch(err => {
-        logger.warn('Error creating Influx database!');
+const render = function(template, data) {
+    if (typeof(template) === 'string') {
+        return mustache.render(template, data);
+    } else {
+        return template;
     }
-)
+}
 
-let setMqttHandlers = function(mqttClient) {
+
+
+
+const setMqttHandlers = function(mqttClient) {
     mqttClient.on('connect', function () {
         logger.info('MQTT connected');
         for (const topic of config.topics) {
@@ -121,7 +120,7 @@ let setMqttHandlers = function(mqttClient) {
     });
 }
 
-let writeToInfux = function(point) {
+const writeToInfux = function(point) {
     logger.verbose('Publishing %s, fields: %s, tags: %s, timestamp: %s', point.measurement, JSON.stringify(point.fields), JSON.stringify(point.tags), point.timestamp);
     influx.writePoints([
             point
@@ -130,3 +129,45 @@ let writeToInfux = function(point) {
         }
     )
 }
+
+
+
+
+
+/**
+ * Now, we'll make sure the database exists and boot the app.
+ */
+
+influx.getDatabaseNames()
+    .then(names => {
+      if (!names.includes('mqtt2influx')) {
+        return influx.createDatabase('mqtt2influx');
+      }
+    })
+    .then(() => {
+        logger.info('Influx DB ready to use. Connecting to MQTT.');
+        let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
+        setMqttHandlers(mqttClient);
+    })
+    .catch(err => {
+        logger.error('Error connecting to the Influx database!');
+        logger.error(err);
+        clearInterval(repeater);
+    }
+)
+
+const checkRepeaterItem = function(value, key, map) {
+    value.count = value.count + 1;
+    if (value.count == value.factor) {
+        value.count = 0;
+        writeToInfux(value.point);
+        logger.info("repeated: " + JSON.stringify(value));
+    }
+}
+
+// start up the repeater
+const repeater = setInterval(function() {
+    // go over all map items
+    repeaters.forEach(checkRepeaterItem);
+}, 30 * 1000);
+
