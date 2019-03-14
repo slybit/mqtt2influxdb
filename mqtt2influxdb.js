@@ -27,12 +27,7 @@ const influx = new Influx.InfluxDB(config.influx);
 const parse = function(topic, message) {
     // ensure data is Object
     let data = {};
-    try {
-        data.M = JSON.parse(message);
-    } catch (err) {
-        data.M = { 'val' : message};
-    }
-
+    data.M = processMessage(message);
     for (const r of config.rewrites) {
         let regex = RegExp(r.regex);
         data.T = regex.exec(topic);
@@ -78,12 +73,33 @@ const parse = function(topic, message) {
 
 }
 
+
 const render = function(template, data) {
     if (typeof(template) === 'string') {
         return mustache.render(template, data);
     } else {
         return template;
     }
+}
+
+// evaluates the mqtt message
+// expects message to be a string
+let processMessage = function(message) {
+    let data = {};
+    if (message === 'true') {
+        data = 1;
+    } else if (message === 'false') {
+        data = 0;
+    } else if (isNaN(message)) {
+        try {
+            data = JSON.parse(message);
+        } catch (err) {
+            data = message; // will be a string
+        }
+    } else {
+        data = Number(message);
+    }
+    return data;
 }
 
 
