@@ -5,10 +5,18 @@ exports.parse = function () {
     const file = process.env.MQTT_CONFIG || 'config.yaml';
     if (fs.existsSync(file)) {
         try {
-          return validate(yaml.safeLoad(fs.readFileSync(file, 'utf8')));
+            let c = yaml.load(fs.readFileSync(file, 'utf8'));
+            if (c.stats) {
+                // create a measurements map and initial count in each stats element
+                for (let stat of c.stats) {
+                    stat.measurements = new Map();   // maps measurement -> list of {influxDB point, timestamp}
+                    stat.count = 0;                  // used to keep track of when to push data to influxdb based on the interval
+                }
+            }
+            return c;
         } catch (e) {
-          console.log(e);
-          process.exit();
+            console.log(e);
+            process.exit();
         }
     } else {
         return {
@@ -25,17 +33,6 @@ exports.parse = function () {
     }
 }
 
-validate = function(c) {
-    for (const r of c.rewrites) {
-        // check that repeat parameter is a valid number
-        // calculate the repeat factor
-        if (r.repeat)
-            if (!isNaN(r.repeat)) {
-                r.factor = Math.ceil(r.repeat / 30);
-            } else {
-                console.log('not a number');
-                throw new Error('Repeat parameter must be a number!')
-            }
-    }
-    return c;
-}
+
+
+

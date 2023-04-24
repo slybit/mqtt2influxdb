@@ -5,39 +5,51 @@ retained: false
 # Configuration passed to the node-influx library
 influx:
   database: 'mqtt2influx'
-  host: '192.168.1.200'
-  port: 8086
+  host: 'influxdb.jules.home'
+  port: 80
 mqtt:
   # URL to MQTT broker
-  url: 'mqtt://192.168.1.200'
+  url: 'mqtt://192.168.1.11'
   # Configuration passed to the MQTT library
   options:
     username: 'mqtt_username'
     password: 'mqtt_password'
 topics:
-  - "knx/#"
-rewrites:
-    - regex: 'knx\/status\/31\/7\/1'
-      measurement: 'knx.status'
-      tags: 
-        label: 'jknx'
-      fields:
-        value: 1
-    - regex: '(knx)\/(status)\/(.*\D.*)\/(.*\D.*)\/(.*\D.*)'
-      measurement: '{{T.3}}.{{T.4}}'
-      timestamp: '{{M.ts}}'
+  - "#"
+instants:
+  - regex: 'test'
+    measurement: 'test'
+    fields:
+      value: '{{M.test | multiply:1000}}'
+    continue: true
+  - regex: 'test'
+    measurement: 'test'
+    fields:
+      value: '{{M.test | multiply:1000}}'
+stats:
+      # knx/status/verlichting/Status_aan_uit/Eettafel_(S16)
+    - regex: 'knx\/status\/verlichting\/Status_aan_uit\/(.*\D.*)'
+      measurement: 'stats/knx/verlichting'
       tags:
-        label: '{{T.5}}'
+        label: '{{T.1}}'
         dstgad: '{{{M.dstgad}}}'
+      interval: 10   # unit = 30 seconds; so interval 10 = 300 seconds = 5 minutes
       fields:
-        value: '{{M.val}}'
-      continue: true
-      #repeat: 30
-    - regex: 'test\/(.*)'
-      measurement: '{{T.1}}'
+        - name: 'average'
+          op: 'avg'      # avg, max, min, add
+          source: '{{M.val}}'
+        - name: 'count'
+          op: 'add'      # avg, max, min, add
+          source: 1
+    - regex: 'test\/(.*\D.*)'
+      measurement: 'stats/test'
       tags:
-        label: 'label{{T.1}}{{M.label}}'
-    - regex: 'knx\/connected'
-      measurement: 'knx/connected'
+        label: '{{T.1}}'
+      interval: 10   # unit = 30 seconds; so interval 10 = 300 seconds = 5 minutes
       fields:
-        value: '{{M}}'
+        - name: 'average'
+          op: 'avg'      # avg, max, min, add
+          source: '{{M.val}}'
+        - name: 'count'
+          op: 'add'      # avg, max, min, add
+          source: 1
