@@ -78,7 +78,7 @@ In the mustache expressions, `{{T.1}}` will be replaced with "knx", `{{T.2}}` wi
 
 It does not match the second rewrite rule regex, so it is ignore for that rule.
 
-### mustache templates
+### Mustache templates
 
 The rest of the rewrite rule configuration is a set of small mustache templates that are used to create the measurement, timestamp, fields and tags for the Influx DB point that will be pushed to the database.
 
@@ -91,6 +91,13 @@ However, I think it is sufficient to know that
 
 Mustache will automatically HTMl encode any "HTML" special characters like "<", ">", "&", etc.
 If you do not want this escaping to happen, you should use three curly brackets, like `{{{M.key}}}`.
+
+### Mustache Wax
+
+Two mathematical functions have been added, based on the project
+https://github.com/jvitela/mustache-wax
+
+To use them, use the following mustache template string: `{{M.test | multiply:1000}}`. This will return the multiplication of the value of `M.test` with 1000.
 
 ### MQTT message payload
 
