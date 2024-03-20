@@ -62,7 +62,7 @@ const parseInstants = function (topic, message) {
             }
 
             if (point.measurement && Object.keys(point.fields).length > 0) {
-                writeToInfux(point);
+                writeToInfux(point, r.retentionPolicy);
             } else {
                 if (!point.measurement)
                     logger.warn('Rewrite resulted in missing measurement. Nothing sent to influx DB.');
@@ -294,18 +294,38 @@ const setMqttHandlers = function (mqttClient) {
     });
 }
 
-const writeToInfux = function (point) {
+const writeToInfux = function (point, retentionPolicy = 'autogen') {
+    
     logger.verbose('Publishing %s, fields: %s, tags: %s, timestamp: %s', point.measurement, JSON.stringify(point.fields), JSON.stringify(point.tags), point.timestamp);
+    logger.verbose('Retention policy: %s', retentionPolicy);
     influx.writePoints([
         point
-    ]).catch(err => {
+    ],{
+        retentionPolicy: retentionPolicy,
+    }).catch(err => {
         logger.warn(`Error saving data to InfluxDB! ${err.stack}`)
     }
     )
 }
 
 
-
+const createRetentionPolicies = () => {
+    influx.showRetentionPolicies().then(policies => {
+        for (let p of policies) {
+            for (let rp of config.influx.retentionPolicies) {
+                if (p.name === rp.name) rp.exists = true;
+            }
+        }
+        for (let rp of config.influx.retentionPolicies) {
+            if (!rp.exists) {
+                influx.createRetentionPolicy(rp.name, {
+                    duration: rp.duration,
+                    replication: rp.replication ? rp.replication : 1
+                })
+            }
+        }
+    });
+}
 
 
 /**
@@ -322,6 +342,7 @@ influx.getDatabaseNames()
         logger.info('Influx DB ready to use. Connecting to MQTT.');
         let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
         setMqttHandlers(mqttClient);
+        createRetentionPolicies();
     })
     .catch(err => {
         logger.error('Error connecting to the Influx database!');
@@ -329,6 +350,9 @@ influx.getDatabaseNames()
         clearInterval(repeater);
     }
     )
+
+
+
 
 
 
@@ -350,7 +374,7 @@ const checkRepeaterItem = function (stat) {
                 const point = measurementObj.point;
                 if (point === undefined) return;
                 if (point.measurement && Object.keys(point.fields).length > 0) {
-                    writeToInfux(point);
+                    writeToInfux(point, stat.retentionPolicy);
                     logger.debug("Stats send to influxdb: " + JSON.stringify(point.fields));
                 } else {
                     if (!point.measurement)

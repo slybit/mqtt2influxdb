@@ -1,5 +1,5 @@
 # One of 'error', 'warn', 'info', 'verbose', debug', 'silly'
-loglevel: 'silly'
+loglevel: 'verbose'
 # Set to true to also parse retain messages at start up
 retained: false
 # Configuration passed to the node-influx library
@@ -7,6 +7,9 @@ influx:
   database: 'mqtt2influx'
   host: 'influxdb.jules.home'
   port: 80
+  retentionPolicies:
+  - name: 14d
+    duration: 14d
 mqtt:
   # URL to MQTT broker
   url: 'mqtt://192.168.1.11'
@@ -34,6 +37,7 @@ stats:
         label: '{{T.1}}'
         dstgad: '{{{M.dstgad}}}'
       interval: 10   # unit = 30 seconds; so interval 10 = 300 seconds = 5 minutes
+      retentionPolicy: 14d
       fields:
         - name: 'average'
           op: 'avg'      # avg, max, min, add
@@ -46,6 +50,7 @@ stats:
       tags:
         label: '{{T.1}}'
       interval: 10   # unit = 30 seconds; so interval 10 = 300 seconds = 5 minutes
+      retentionPolicy: 14d
       fields:
         - name: 'average'
           op: 'avg'      # avg, max, min, add
