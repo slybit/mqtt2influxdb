@@ -295,7 +295,7 @@ const setMqttHandlers = function (mqttClient) {
 
 const writeToInfux = function (point, retentionPolicy = 'autogen') {
 
-    logger.verbose('Publishing %s, fields: %s, tags: %s, timestamp: %s', {'measurement': point.measurement, 'fields': point.fields, 'tags': point.tags, 'timestamp': point.timestamp, 'Retention': retentionPolicy});
+    logger.verbose('Publishing to influx', {'measurement': point.measurement, 'fields': point.fields, 'tags': point.tags, 'timestamp': point.timestamp, 'Retention': retentionPolicy});
     influx.writePoints([
         point
     ],{
