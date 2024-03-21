@@ -7,6 +7,16 @@ const mqtt = require('mqtt');
 const { logger } = require('./standardlogger.js');
 const config = require('./config.js').parse();
 
+// verify and amand the config object
+if (config.stats) {
+    // create a measurements map and initial count in each stats element
+    for (let stat of config.stats) {
+        stat.measurements = new Map();   // maps measurement -> list of {influxDB point, timestamp}
+        stat.count = 0;                  // used to keep track of when to push data to influxdb based on the interval
+    }
+}
+
+
 Wax(mustache);
 
 mustache.Formatters = {
