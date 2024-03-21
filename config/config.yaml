@@ -1,5 +1,13 @@
 # One of 'error', 'warn', 'info', 'verbose', debug', 'silly'
 loglevel: 'verbose'
+ESlogging:
+    enabled: true
+    label: MQTT2INFLUXDB
+    loglevel: info
+    options:
+        indexPrefix: logs
+        clientOpts:
+            node: http://es.elastic.home
 # Set to true to also parse retain messages at start up
 retained: false
 # Configuration passed to the node-influx library

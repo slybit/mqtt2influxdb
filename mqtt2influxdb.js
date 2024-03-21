@@ -4,7 +4,7 @@ const Influx = require('influx');
 const mustache = require('mustache');
 const Wax = require('@jvitela/mustache-wax');
 const mqtt = require('mqtt');
-const { createLogger, format, transports } = require('winston');
+const { logger } = require('./standardlogger.js');
 const config = require('./config.js').parse();
 
 Wax(mustache);
@@ -21,17 +21,6 @@ mustache.Formatters = {
 };
 
 let justStarted = true;
-
-// Initate the logger
-const logger = createLogger({
-    level: config.loglevel,
-    format: format.combine(
-        format.colorize(),
-        format.splat(),
-        format.simple(),
-    ),
-    transports: [new transports.Console()]
-});
 
 
 const influx = new Influx.InfluxDB(config.influx);
@@ -265,7 +254,7 @@ const setMqttHandlers = function (mqttClient) {
         logger.info('MQTT connected');
         for (const topic of config.topics) {
             mqttClient.subscribe(topic);
-            logger.verbose('subscribed to %s', topic);
+            logger.verbose('subscribed to', {'topic': topic});
         }
     });
 
@@ -282,22 +271,21 @@ const setMqttHandlers = function (mqttClient) {
         if (!packet.retain) justStarted = false;
         if (!justStarted || config.retained) {
             // message is a buffer
-            logger.silly("MQTT received %s : %s", topic, message)
+            logger.silly("MQTT received", {'topic': topic, 'message': message})
             message = message.toString();
             if (config.instants !== undefined && Array.isArray(config.instants))
                 parseInstants(topic, message);
             if (config.stats !== undefined && Array.isArray(config.stats))
                 parseStats(topic, message);
         } else {
-            logger.silly("MQTT ignored initial retained  %s : %s", topic, message)
+            logger.silly("MQTT ignored initial retained", {'topic': topic, 'message': message})
         }
     });
 }
 
 const writeToInfux = function (point, retentionPolicy = 'autogen') {
-    
-    logger.verbose('Publishing %s, fields: %s, tags: %s, timestamp: %s', point.measurement, JSON.stringify(point.fields), JSON.stringify(point.tags), point.timestamp);
-    logger.verbose('Retention policy: %s', retentionPolicy);
+
+    logger.verbose('Publishing %s, fields: %s, tags: %s, timestamp: %s', {'measurement': point.measurement, 'fields': point.fields, 'tags': point.tags, 'timestamp': point.timestamp, 'Retention': retentionPolicy});
     influx.writePoints([
         point
     ],{
@@ -374,8 +362,8 @@ const checkRepeaterItem = function (stat) {
                 const point = measurementObj.point;
                 if (point === undefined) return;
                 if (point.measurement && Object.keys(point.fields).length > 0) {
+                    logger.debug("Stats send to influxdb", {'fields': point.fields});
                     writeToInfux(point, stat.retentionPolicy);
-                    logger.debug("Stats send to influxdb: " + JSON.stringify(point.fields));
                 } else {
                     if (!point.measurement)
                         logger.warn('Stats resulted in missing measurement. Nothing sent to influx DB.');
