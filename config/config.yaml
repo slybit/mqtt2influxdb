@@ -13,20 +13,20 @@ retained: false
 # Configuration passed to the node-influx library
 influx:
   database: 'mqtt2influx'
-  host: 'influxdb.jules.home'
+  host: 'influxdb.k3s.home'
   port: 80
   retentionPolicies:
   - name: 14d
     duration: 14d
 mqtt:
   # URL to MQTT broker
-  url: 'mqtt://192.168.1.11'
+  url: 'mqtt://192.168.1.25'
   # Configuration passed to the MQTT library
   options:
     username: 'mqtt_username'
     password: 'mqtt_password'
 topics:
-  - "#"
+  - "test/#"
 instants:
   - regex: 'test'
     measurement: 'test'
@@ -57,7 +57,7 @@ stats:
       measurement: 'stats/test'
       tags:
         label: '{{T.1}}'
-      interval: 10   # unit = 30 seconds; so interval 10 = 300 seconds = 5 minutes
+      interval: 1   # unit = 30 seconds; so interval 10 = 300 seconds = 5 minutes
       retentionPolicy: 14d
       fields:
         - name: 'average'
