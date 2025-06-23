@@ -15,9 +15,17 @@ influx:
   database: 'mqtt2influx'
   host: 'influxdb.k3s.home'
   port: 80
-  retentionPolicies:
-  - name: 14d
-    duration: 14d
+
+databases:
+  - name: 'mqtt2influx'
+    retentionPolicies:
+    - name: 14d
+      duration: 14
+  - name: 'energy'
+    retentionPolicies:
+    - name: 14d
+      duration: 14
+
 mqtt:
   # URL to MQTT broker
   url: 'mqtt://192.168.1.25'
@@ -34,6 +42,7 @@ instants:
       value: '{{M.test | multiply:1000}}'
     continue: true
   - regex: 'test'
+    database: 'energy'
     measurement: 'test'
     fields:
       value: '{{M.test | multiply:1000}}'

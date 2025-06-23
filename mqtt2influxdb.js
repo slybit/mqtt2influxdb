@@ -21,8 +21,6 @@ Wax(mustache);
 
 mustache.Formatters = {
     "multiply": function (value, multiplier) {
-        console.log('mul');
-        console.log(value);
         return value * multiplier;
     },
     "add": function (value, a) {
@@ -32,8 +30,11 @@ mustache.Formatters = {
 
 let justStarted = true;
 
-
-const influx = new Influx.InfluxDB(config.influx);
+// bucket of points that we need to write to influxdb
+// this will be indexed
+// - per database
+// - per retentionPeriod
+const bucket = {};
 
 
 const parseInstants = function (topic, message) {
@@ -61,7 +62,7 @@ const parseInstants = function (topic, message) {
             }
 
             if (point.measurement && Object.keys(point.fields).length > 0) {
-                writeToInfux(point, r.retentionPolicy);
+                pushToBucket(point, r.database, r.retentionPolicy);
             } else {
                 if (!point.measurement)
                     logger.warn('Rewrite resulted in missing measurement. Nothing sent to influx DB.');
@@ -293,61 +294,57 @@ const setMqttHandlers = function (mqttClient) {
     });
 }
 
-const writeToInfux = function (point, retentionPolicy = 'autogen') {
+const pushToBucket = function (point, database = undefined, retentionPolicy = 'autogen') {
 
-    logger.verbose('Publishing to influx', {'measurement': point.measurement, 'fields': point.fields, 'tags': point.tags, 'timestamp': point.timestamp, 'Retention': retentionPolicy});
-    influx.writePoints([
-        point
-    ],{
-        retentionPolicy: retentionPolicy,
-    }).catch(err => {
-        logger.warn(`Error saving data to InfluxDB! ${err.stack}`)
-    }
-    )
+    const db = database ? database : config.influx.database;
+    logger.debug('Add to bucket', {'database': db, 'measurement': point.measurement, 'fields': point.fields, 'tags': point.tags, 'timestamp': point.timestamp, 'retention': retentionPolicy});
+
+    if (!bucket.hasOwnProperty(db)) bucket[db] = {};
+    if (!bucket[db].hasOwnProperty(retentionPolicy)) bucket[db][retentionPolicy] = [];
+    
+    bucket[db][retentionPolicy].push(point);
+
+
+
 }
 
 
-const createRetentionPolicies = () => {
-    influx.showRetentionPolicies().then(policies => {
-        for (let p of policies) {
-            for (let rp of config.influx.retentionPolicies) {
-                if (p.name === rp.name) rp.exists = true;
-            }
+
+
+const createDatabases = async (names) => {
+    // name contains the already existing databases
+    for (let dbItem of config.databases) {
+        if (!names.includes(dbItem.name)) {
+            await influx.createDatabase(dbItem.name);            
+            logger.info(`Create influx database ${dbItem.name}`);
         }
-        for (let rp of config.influx.retentionPolicies) {
-            if (!rp.exists) {
-                influx.createRetentionPolicy(rp.name, {
-                    duration: rp.duration,
-                    replication: rp.replication ? rp.replication : 1
-                })
-            }
-        }
-    });
+        await createRetentionPolicies(dbItem);
+    }
+    
+
 }
 
 
-/**
- * Now, we'll make sure the database exists and boot the app.
- */
-
-influx.getDatabaseNames()
-    .then(names => {
-        if (!names.includes('mqtt2influx')) {
-            return influx.createDatabase('mqtt2influx');
+const createRetentionPolicies = async (dbItem) => {
+    let policies = await influx.showRetentionPolicies(dbItem.name);        
+    for (let p of policies) {
+        for (let rp of dbItem.retentionPolicies) {
+            if (p.name === rp.name) rp.exists = true;
         }
-    })
-    .then(() => {
-        logger.info('Influx DB ready to use. Connecting to MQTT.');
-        let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
-        setMqttHandlers(mqttClient);
-        createRetentionPolicies();
-    })
-    .catch(err => {
-        logger.error('Error connecting to the Influx database!');
-        logger.error(err);
-        clearInterval(repeater);
     }
-    )
+    for (let rp of dbItem.retentionPolicies) {
+        if (!rp.exists) {
+            await influx.createRetentionPolicy(rp.name, {
+                database: dbItem.name,
+                duration: rp.duration,
+                replication: rp.replication ? rp.replication : 1
+            });
+            logger.info(`Create influx retention policy ${rp.name} for database ${dbItem.name}`);
+        }
+    }
+}
+
+
 
 
 
@@ -356,9 +353,6 @@ influx.getDatabaseNames()
 
 
 /* Repeating loop for the stats */
-
-
-
 const checkRepeaterItem = function (stat) {
 
     stat.count = stat.count + 1;
@@ -373,7 +367,7 @@ const checkRepeaterItem = function (stat) {
                 if (point === undefined) return;
                 if (point.measurement && Object.keys(point.fields).length > 0) {
                     logger.debug("Stats send to influxdb", {'fields': point.fields});
-                    writeToInfux(point, stat.retentionPolicy);
+                    pushToBucket(point, stat.database, stat.retentionPolicy);
                 } else {
                     if (!point.measurement)
                         logger.warn('Stats resulted in missing measurement. Nothing sent to influx DB.');
@@ -388,11 +382,71 @@ const checkRepeaterItem = function (stat) {
 
 }
 
-// start up the repeater
+
+
+
+/**
+ * Actually run something is below this line.
+ */ 
+
+// setup the the repeater for the stats
 const repeater = setInterval(function () {
     // go over all map items
     for (const stat of config.stats) {
         checkRepeaterItem(stat);
     }
 }, 30 * 1000);
+
+// setup the repeater to write the bucket to influxdb
+const writeRepeater = setInterval(async function () {
+    
+    // go over the entries in the bucket
+    let i = 0;
+    for (const db in bucket) {
+        for (const retentionPolicy in bucket[db]) {
+            const points = bucket[db][retentionPolicy];
+            if (points.length > 0) {
+                setTimeout(async () => {
+                    try {
+                        await influx.writePoints(points, {
+                            database: db,
+                            retentionPolicy: retentionPolicy
+                        });
+                        logger.debug(`Wrote ${points.length} points to database ${db} with retention policy ${retentionPolicy}`);
+                    } catch (err) {
+                        logger.warn(`Error saving data to database ${db} with retention policy ${retentionPolicy}! ${err.stack}`);
+                    }
+                    // clear the bucket for this retention policy
+                    bucket[db][retentionPolicy] = [];
+                }, i++ * 200);
+            }
+        }
+    }
+}, 6*1000);
+
+
+// Create our influx instance
+const influx = new Influx.InfluxDB(config.influx);
+
+const go = async () => {
+    try {
+        // Now, we'll make sure the databases exist
+        let names = await influx.getDatabaseNames();
+        await createDatabases(names);
+        logger.info('Influx DB ready to use. Connecting to MQTT.');
+        let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
+        setMqttHandlers(mqttClient);        
+    } catch (err) {
+            logger.error('Error connecting to the Influx database!');
+            logger.error(err);
+            clearInterval(repeater);
+
+    }
+}
+
+
+go();
+
+
+
 
