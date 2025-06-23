@@ -50,6 +50,8 @@ const parseInstants = function (topic, message) {
             if (r.timestamp) {
                 let ts = Number(render(r.timestamp, data));
                 if (!isNaN(ts)) point.timestamp = new Date(ts);
+            } else {
+                point.timestamp = new Date();
             }
             point.tags = {};
             for (var tag in r.tags) {
@@ -366,7 +368,8 @@ const checkRepeaterItem = function (stat) {
                 const point = measurementObj.point;
                 if (point === undefined) return;
                 if (point.measurement && Object.keys(point.fields).length > 0) {
-                    logger.debug("Stats send to influxdb", {'fields': point.fields});
+                    logger.debug("Stats sent to influxdb", {'fields': point.fields});
+                    point.timestamp = new Date(); // set current time as timestamp for this point
                     pushToBucket(point, stat.database, stat.retentionPolicy);
                 } else {
                     if (!point.measurement)
