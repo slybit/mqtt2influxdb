@@ -30,6 +30,10 @@ mustache.Formatters = {
 
 let justStarted = true;
 
+// InfluxDB connection state tracking
+let influxConnected = false;
+let reconnectTimeout = null;
+
 // bucket of points that we need to write to influxdb
 // this will be indexed
 // - per database
@@ -305,13 +309,34 @@ const pushToBucket = function (point, database = undefined, retentionPolicy = 'a
     if (!bucket[db].hasOwnProperty(retentionPolicy)) bucket[db][retentionPolicy] = [];
     
     bucket[db][retentionPolicy].push(point);
-
-
-
 }
 
 
 
+
+const attemptInfluxReconnect = async () => {
+    if (reconnectTimeout) return; // prevent multiple simultaneous reconnection attempts
+    
+    logger.info('Attempting to reconnect to InfluxDB...');
+    
+    try {
+        let names = await influx.getDatabaseNames();
+        await createDatabases(names);
+        influxConnected = true;
+        logger.info('Successfully reconnected to InfluxDB');
+        if (reconnectTimeout) {
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = null;
+        }
+    } catch (err) {
+        influxConnected = false;
+        logger.warn('Failed to reconnect to InfluxDB, will retry in 1 minute');
+        reconnectTimeout = setTimeout(async () => {
+            reconnectTimeout = null;
+            await attemptInfluxReconnect();
+        }, 60 * 1000);
+    }
+};
 
 const createDatabases = async (names) => {
     // name contains the already existing databases
@@ -403,6 +428,12 @@ const repeater = setInterval(function () {
 // setup the repeater to write the bucket to influxdb
 const writeRepeater = setInterval(async function () {
     
+    // skip writing if not connected
+    if (!influxConnected) {
+        logger.debug('Skipping write to InfluxDB - not connected');
+        return;
+    }
+    
     // go over the entries in the bucket
     let i = 0;
     for (const db in bucket) {
@@ -416,16 +447,23 @@ const writeRepeater = setInterval(async function () {
                             retentionPolicy: retentionPolicy
                         });
                         logger.debug(`Wrote ${points.length} points to database ${db} with retention policy ${retentionPolicy}`);
+                        // clear the bucket for this retention policy only on success
+                        bucket[db][retentionPolicy] = [];
                     } catch (err) {
                         logger.warn(`Error saving data to database ${db} with retention policy ${retentionPolicy}! ${err.stack}`);
+                        // mark as disconnected and trigger reconnection
+                        if (influxConnected) {
+                            influxConnected = false;
+                            logger.error('InfluxDB connection lost, initiating reconnection attempts');
+                            await attemptInfluxReconnect();
+                        }
+                        // keep points in bucket for retry when connection is restored
                     }
-                    // clear the bucket for this retention policy
-                    bucket[db][retentionPolicy] = [];
                 }, i++ * 200);
             }
         }
     }
-}, 6*1000);
+}, 60*1000);
 
 
 // Create our influx instance
@@ -436,14 +474,23 @@ const go = async () => {
         // Now, we'll make sure the databases exist
         let names = await influx.getDatabaseNames();
         await createDatabases(names);
+        influxConnected = true;
         logger.info('Influx DB ready to use. Connecting to MQTT.');
         let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
         setMqttHandlers(mqttClient);        
     } catch (err) {
             logger.error('Error connecting to the Influx database!');
             logger.error(err);
-            clearInterval(repeater);
-
+            influxConnected = false;
+            logger.info('Will attempt to reconnect to InfluxDB in 1 minute');
+            // Start MQTT connection anyway to collect data
+            let mqttClient = mqtt.connect(config.mqtt.url, config.mqtt.options);
+            setMqttHandlers(mqttClient);
+            // Schedule reconnection attempts
+            reconnectTimeout = setTimeout(async () => {
+                reconnectTimeout = null;
+                await attemptInfluxReconnect();
+            }, 60 * 1000);
     }
 }
 

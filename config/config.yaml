@@ -20,11 +20,11 @@ databases:
   - name: 'mqtt2influx'
     retentionPolicies:
     - name: 14d
-      duration: 14
+      duration: 14d
   - name: 'energy'
     retentionPolicies:
     - name: 14d
-      duration: 14
+      duration: 14d
 
 mqtt:
   # URL to MQTT broker
